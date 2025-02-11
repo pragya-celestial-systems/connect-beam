@@ -18,6 +18,8 @@ export default function SignIn(){
         <>
             <h1>Sign up user</h1>
             <AuthForm data={formData} action={formAction} isSignInPage={true}/>
+            <button><a href="/api/auth/login">Login with google</a></button>
+            <button><a href="/api/auth/logout">Logout</a></button>
             <p>Don&apos;t have an account? <Link href={'/sign-up'}>Sign Up</Link></p>
         </>
     )
