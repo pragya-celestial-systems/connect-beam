@@ -3,16 +3,23 @@ import { useEffect, useState } from "react";
 import { useActionState } from "react";
 import { handleSignUp } from "../../../actions/auth-actions";
 import { redirect } from "next/navigation";
+import { useUser } from "@auth0/nextjs-auth0/client";
 
 
 export default function SignUp() {
   const [formData, formAction, isPending] = useActionState(handleSignUp, {});
+  const session =  useUser();
+  const user = session?.user;
 
   useEffect(() => {
     if (formData?.success) {
       redirect('/sign-in');
     }
-  }, [formData]);
+
+    if(user) {
+      redirect('/');
+    }
+  }, [formData, user]);
 
   return (
     <div>
