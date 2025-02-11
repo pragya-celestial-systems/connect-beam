@@ -1,25 +1,35 @@
-import { validateUserInput } from '@/app/middlewares/auth';
-import {db} from '../../lib/db.config';
+import { cookies } from 'next/headers';
+import {db} from '../../../lib/db.config';
+import jwt from 'jsonwebtoken';
 
 export async function GET(req) {
   try {
-    const query = "SELECT * FROM users;";
-    const users = await db.query(query);
-    return new Response(JSON.stringify(users.rows), { status: 200 });
+    const searchParams = req.url.split('?')[1].split('=');
+    const email = searchParams[1].split('&')[0];
+    const password = searchParams[2];
+
+    const query = "SELECT * FROM users WHERE email = $1 AND password = $2";
+    const user = await db.query(query, [email, password]);
+
+    if(user.rows.length <= 0) {
+      return new Response('User not found. Please check the entered credentials and try again.', {status: 404});
+    }
+
+    // create token and set the cookie
+    const token = jwt.sign({}, process.env.SECRET_KEY, { expiresIn: '1d' });
+    (await cookies()).set('auth-token', token);
+
+    return new Response({data: JSON.stringify(user.rows)}, { status: 200 });
   } catch (error) {
     console.error(error);
     return new Response("Error fetching users", { status: 500 });
   }
 }
 
-export async function POST(req) {
+export async function POST(req, res) {
   try {
-    const { email, password, bio, name } = req.body;
-    const isValidUser = validateUserInput(req);
-
-    // if(isValidUser.status === '400') {
-    //   return new Response(isValidUser.body, { status: 400 });
-    // }
+    const data = await req.json();
+    const { email, password, bio, name } = data;
 
     // check if user with the email already exists
     let query = "SELECT * FROM users WHERE email = $1;";
@@ -34,9 +44,11 @@ export async function POST(req) {
 
     // if user doesn't exists
     query = "INSERT INTO users (name, email, password, bio) VALUES ($1, $2, $3, $4)";
-    db.query(query, [name, email, password, bio || `Hey there! I'm ${name}`]);
+    await db.query(query, [name, email, password, bio || `Hey there! I'm ${name}`]);
 
-    return new Response('User created successfully', { status: 200 });
+    return new Response({message: 'User created successfully'}, {
+      status: 200,
+    });
   } catch (error) {
     console.log(error);
     return new Response("Error fetching user details", { status: 500 });
@@ -78,7 +90,7 @@ export async function DELETE(req, res) {
 
       const query = `DELETE FROM users WHERE id = ${userId}`;
       await db.query(query);
-      res.status(204).send('User deleted successfully');
+      return new Response('User deleted successfully', {status: 204});
   } catch (error) {
       console.log(error);
       return new Response("Something went wrong. Couldn't delete user", { status: 500 });
